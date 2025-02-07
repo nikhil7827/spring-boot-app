@@ -5,7 +5,7 @@ FROM openjdk:21
 WORKDIR /app
 
 # Copy the built JAR file into the container
-COPY target/ci-cd-demo-1.0-SNAPSHOT.jar app.jar
+COPY target/spring-boot-app-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose the application port (Spring Boot default is 8080)
 EXPOSE 8080

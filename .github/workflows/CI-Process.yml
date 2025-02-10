@@ -39,7 +39,7 @@ jobs:
           docker build -t nikhil0708/ci-cd-demo:latest .
 
       - name: Login to DockerHub
-        run: echo "Nd3313454191" | docker login -u "nikhil0708" --password-stdin
+        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Docker Image
         run: docker push nikhil0708/ci-cd-demo:latest

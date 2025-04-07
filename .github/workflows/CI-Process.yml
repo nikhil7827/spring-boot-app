@@ -60,7 +60,7 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t nikhil0708/ci-cd-demo:latest \
-                       -t nikhil0708/ci-cd-demo:${{ steps.vars.outputs.sha_short }} .
+                       -t nikhil0708/ci-cd-demo:${{ env.sha_short }} .
 
       - name: Login to DockerHub
         run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -68,7 +68,7 @@ jobs:
       - name: Push Docker image
         run: |
           docker push nikhil0708/ci-cd-demo:latest
-          docker push nikhil0708/ci-cd-demo:${{ steps.vars.outputs.sha_short }}
+          docker push nikhil0708/ci-cd-demo:${{ env.sha_short }}
 
   deploy:
     needs: docker

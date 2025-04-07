@@ -86,6 +86,10 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }}
 
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -f k8s/deployment.yaml
+
       - name: Deploy to EKS
         run: |
           kubectl set image deployment/spring-boot-app spring-boot-app=nikhil0708/ci-cd-demo:latest
+

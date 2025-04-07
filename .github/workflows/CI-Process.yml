@@ -21,25 +21,69 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
       - name: Build with Maven
         run: mvn clean package -DskipTests
-        
+
       - name: Run Tests
         run: mvn test
+
+      - name: Upload built jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/spring-boot-app-0.0.1-SNAPSHOT.jar
 
   docker:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Download built jar
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
 
-      - name: Build Docker Image
+      - name: Move jar to target directory
+        run: mkdir -p target && mv spring-boot-app-0.0.1-SNAPSHOT.jar target/
+
+      - name: Get short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image
         run: |
-          docker build -t nikhil0708/ci-cd-demo:latest .
+          docker build -t nikhil0708/ci-cd-demo:latest \
+                       -t nikhil0708/ci-cd-demo:${{ steps.vars.outputs.sha_short }} .
 
       - name: Login to DockerHub
         run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Push Docker Image
-        run: docker push nikhil0708/ci-cd-demo:latest
+      - name: Push Docker image
+        run: |
+          docker push nikhil0708/ci-cd-demo:latest
+          docker push nikhil0708/ci-cd-demo:${{ steps.vars.outputs.sha_short }}
+
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Deploy to EKS
+        run: |
+          kubectl set image deployment/spring-boot-app spring-boot-app=nikhil0708/ci-cd-demo:latest

@@ -41,55 +41,29 @@ jobs:
           name: app-jar
           path: target/spring-boot-app-0.0.1-SNAPSHOT.jar
 
-  docker:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      # Add JFrog steps below
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ secrets.JFROG_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_PASSWORD }}  # Use access token or password
+          JF_USER: ${{ secrets.JFROG_USERNAME }}
 
-      - name: Download built jar
-        uses: actions/download-artifact@v4
-        with:
-          name: app-jar
-
-      - name: Move jar to target directory
-        run: mkdir -p target && mv spring-boot-app-0.0.1-SNAPSHOT.jar target/
-
-      - name: Get short SHA
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-
-      - name: Build Docker image
+      - name: Configure JFrog CLI
         run: |
-          docker build -t nikhil0708/ci-cd-demo:latest \
-                       -t nikhil0708/ci-cd-demo:${{ env.sha_short }} .
+          jf config add artifactory-server \
+            --url=${{ secrets.JFROG_URL }} \
+            --user=${{ secrets.JFROG_USERNAME }} \
+            --password=${{ secrets.JFROG_PASSWORD }} \
+            --interactive=false
+          jf config use artifactory-server
 
-      - name: Login to DockerHub
-        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
-      - name: Push Docker image
+      - name: Upload JAR to JFrog Artifactory
         run: |
-          docker push nikhil0708/ci-cd-demo:latest
-          docker push nikhil0708/ci-cd-demo:${{ env.sha_short }}
+          jf rt upload "target/spring-boot-app-0.0.1-SNAPSHOT.jar" "libs-release-local/" \
+            --build-name="spring-boot-app" \
+            --build-number=${{ github.run_number }}
 
-  deploy:
-    needs: docker
-    runs-on: ubuntu-latest
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }}
-
-      - name: Apply Kubernetes manifests
-        run: kubectl apply -f k8s/deployment.yaml
-
-      - name: Deploy to EKS
+      - name: Publish Build Info (Optional)
         run: |
-          kubectl set image deployment/spring-boot-app spring-boot-app=nikhil0708/ci-cd-demo:latest
-
+          jf rt build-publish "spring-boot-app" ${{ github.run_number }}

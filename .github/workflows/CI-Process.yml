@@ -46,7 +46,7 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ secrets.JFROG_URL }}
-          JF_ACCESS_TOKEN: ${{ secrets.JFROG_PASSWORD }}  # Use access token or password
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_API_KEY }}  # Use access token or password
           JF_USER: ${{ secrets.JFROG_USERNAME }}
 
       - name: Configure JFrog CLI
@@ -54,7 +54,7 @@ jobs:
           jf config add artifactory-server \
             --url=${{ secrets.JFROG_URL }} \
             --user=${{ secrets.JFROG_USERNAME }} \
-            --password=${{ secrets.JFROG_PASSWORD }} \
+            --password=${{ secrets.JFROG_API_KEY }} \
             --interactive=false
           jf config use artifactory-server
 
